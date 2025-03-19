@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  # Infrastructure
+  mongo:
+    image: mongo:latest
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    networks:
+      - tickettack-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - tickettack-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/Dockerfile
+    ports:
+      - "5000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - AuthService__Url=http://auth-service
+      - EventService__Url=http://event-service
+      - UserService__Url=http://user-service
+      - TicketService__Url=http://ticket-service
+    depends_on:
+      - auth-service
+      - event-service
+      - user-service
+      - ticket-service
+    networks:
+      - tickettack-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: src/AuthService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MongoDB__ConnectionString=mongodb://root:example@mongo:27017
+      - MongoDB__DatabaseName=auth_service
+      - JWT__Secret=your-secret-key-here-make-it-long-and-secure
+      - JWT__Issuer=tickettack
+      - JWT__Audience=tickettack-clients
+    depends_on:
+      - mongo
+    networks:
+      - tickettack-network
+
+  # Event Service
+  event-service:
+    build:
+      context: .
+      dockerfile: src/EventService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MongoDB__ConnectionString=mongodb://root:example@mongo:27017
+      - MongoDB__DatabaseName=event_service
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      - mongo
+      - rabbitmq
+    networks:
+      - tickettack-network
+
+  # User Service
+  user-service:
+    build:
+      context: .
+      dockerfile: src/UserService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MongoDB__ConnectionString=mongodb://root:example@mongo:27017
+      - MongoDB__DatabaseName=user_service
+    depends_on:
+      - mongo
+    networks:
+      - tickettack-network
+
+  # Ticket Service
+  ticket-service:
+    build:
+      context: .
+      dockerfile: src/TicketService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MongoDB__ConnectionString=mongodb://root:example@mongo:27017
+      - MongoDB__DatabaseName=ticket_service
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      - mongo
+      - rabbitmq
+    networks:
+      - tickettack-network
+
+  # Notification Service
+  notification-service:
+    build:
+      context: .
+      dockerfile: src/NotificationService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      - rabbitmq
+    networks:
+      - tickettack-network
+
+networks:
+  tickettack-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  rabbitmq_data:
