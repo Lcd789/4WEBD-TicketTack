@@ -39,12 +39,7 @@ services:
       - TicketService__Url=http://ticket-service
       - UserService__Url=http://user-service
       - NotificationService__Url=http://notification-service
-    depends_on:
-      - auth-service
-      - event-service
-      - ticket-service
-      - user-service
-      - notification-service
+
     networks:
       - tickettack-network
 
