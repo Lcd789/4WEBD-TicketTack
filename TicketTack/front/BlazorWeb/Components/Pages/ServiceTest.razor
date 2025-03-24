@@ -1,0 +1,63 @@
+﻿@page "/service-test"
+@inject IHttpClientFactory HttpClientFactory
+
+<h3>Test des services</h3>
+
+<div class="row mb-4">
+    <div class="col">
+        <button class="btn btn-primary" @onclick="@(() => PingService("Auth"))">Tester Auth Service</button>
+    </div>
+    <div class="col">
+        <button class="btn btn-primary" @onclick="@(() => PingService("Event"))">Tester Event Service</button>
+    </div>
+    <div class="col">
+        <button class="btn btn-primary" @onclick="@(() => PingService("Ticket"))">Tester Ticket Service</button>
+    </div>
+    <div class="col">
+        <button class="btn btn-primary" @onclick="@(() => PingService("User"))">Tester User Service</button>
+    </div>
+    <div class="col">
+        <button class="btn btn-primary" @onclick="@(() => PingService("Notification"))">Tester Notification Service</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(responseMessage))
+{
+    <div class="alert @alertClass" role="alert">
+        @responseMessage
+    </div>
+}
+
+@code {
+    private string responseMessage = "";
+    private string alertClass = "alert-info";
+
+    private async Task PingService(string serviceName)
+    {
+        try
+        {
+            responseMessage = "Appel en cours...";
+            alertClass = "alert-info";
+            StateHasChanged();
+
+            var httpClient = HttpClientFactory.CreateClient("ApiGatewayClient");
+            var response = await httpClient.GetAsync($"api/healthcheck/ping/{serviceName}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                responseMessage = await response.Content.ReadAsStringAsync();
+                alertClass = "alert-success";
+            }
+            else
+            {
+                responseMessage = $"Erreur {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}";
+                alertClass = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            responseMessage = $"Erreur: {ex.Message}";
+            alertClass = "alert-danger";
+        }
+    }
+}

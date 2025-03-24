@@ -31,7 +31,7 @@ services:
       context: .
       dockerfile: src/ApiGateway/Dockerfile
     ports:
-      - "5000:80"
+      - "8080:80"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - AuthService__Url=http://auth-service
@@ -143,7 +143,7 @@ services:
       context: .
       dockerfile: front/BlazorWeb/Dockerfile
     ports:
-      - "5001:80"
+      - "5001:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ApiGateway__Url=http://api-gateway

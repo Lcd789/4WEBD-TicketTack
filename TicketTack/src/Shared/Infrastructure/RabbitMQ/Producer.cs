@@ -1,13 +1,13 @@
-﻿using System;
-using System.Text;
-using System.Text.Json;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
-using static MongoDB.Driver.WriteConcern;
+using System;
+using System.Text.Json;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace TicketTack.Shared.Infrastructure.RabbitMQ
 {
-    public class Producer : IDisposable
+    public class Producer : IAsyncDisposable
     {
         private readonly RabbitMQConnection _connection;
         private readonly ILogger<Producer> _logger;
@@ -18,57 +18,53 @@ namespace TicketTack.Shared.Infrastructure.RabbitMQ
         {
             _connection = connection;
             _logger = logger;
-            _channel = CreateChannel();
         }
 
-        private IModel CreateChannel()
+        private async Task<IModel> GetChannelAsync()
         {
-            var channel = _connection.GetConnection().CreateModel();
-            return channel;
-        }
-
-        public void PublishMessage<T>(string exchange, string routingKey, T message) where T : class
-        {
-            try
+            if (_channel == null || _channel.IsClosed)
             {
-                // Ensure channel is open
-                if (_channel == null || _channel.IsClosed)
-                {
-                    _channel = CreateChannel();
-                }
-
-                // Declare exchange if it doesn't exist
-                _channel.ExchangeDeclare(exchange, ExchangeType.Topic, durable: true);
-
-                var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
-
-                var properties = _channel.CreateBasicProperties();
-                properties.DeliveryMode = 2; // Persistent message
-                properties.MessageId = Guid.NewGuid().ToString();
-                properties.Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-
-                _channel.BasicPublish(
-                    exchange: exchange,
-                    routingKey: routingKey,
-                    basicProperties: properties,
-                    body: body);
-
-                _logger.LogInformation($"Message published to {exchange} with routing key {routingKey}");
+                var connection = await _connection.GetConnectionAsync();
+                _channel = connection.CreateModel();
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error publishing message to {exchange} for routing key {routingKey}");
-                throw;
-            }
+            return _channel;
         }
 
-        public void Dispose()
+        public async Task PublishMessageAsync<T>(string exchange, string routingKey, T message) where T : class
         {
-            if (_disposed) return;
+            var channel = await GetChannelAsync();
 
-            _channel?.Close();
-            _channel?.Dispose();
+            // Declare exchange if needed
+            channel.ExchangeDeclare(exchange, ExchangeType.Topic, durable: true);
+
+            var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
+            var properties = channel.CreateBasicProperties();
+            properties.Persistent = true;
+            properties.MessageId = Guid.NewGuid().ToString();
+            properties.Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+
+            channel.BasicPublish(
+                exchange: exchange,
+                routingKey: routingKey,
+                basicProperties: properties,
+                body: body);
+
+            _logger.LogInformation($"Message published to {exchange} with routing key {routingKey}");
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            if (_disposed) return ValueTask.CompletedTask;
+
+            if (_channel != null)
+            {
+                _channel.Close();
+                _channel.Dispose();
+            }
+
             _disposed = true;
+
+            return ValueTask.CompletedTask;
         }
     }
 }

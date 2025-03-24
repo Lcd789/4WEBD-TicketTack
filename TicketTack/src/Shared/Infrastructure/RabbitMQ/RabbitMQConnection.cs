@@ -1,9 +1,11 @@
-﻿using Microsoft.Extensions.Configuration;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.Threading.Tasks;
 
 namespace TicketTack.Shared.Infrastructure.RabbitMQ
 {
-    public class RabbitMQConnection
+    public class RabbitMQConnection : IAsyncDisposable
     {
         private readonly ConnectionFactory _factory;
         private IConnection _connection;
@@ -20,22 +22,27 @@ namespace TicketTack.Shared.Infrastructure.RabbitMQ
             };
         }
 
-        public IConnection GetConnection()
+        public Task<IConnection> GetConnectionAsync()
         {
             if (_connection == null || !_connection.IsOpen)
             {
                 _connection = _factory.CreateConnection();
             }
-
-            return _connection;
+            return Task.FromResult(_connection);
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             if (_disposed) return;
 
-            _connection?.Dispose();
+            if (_connection != null)
+            {
+                _connection.Close();
+                _connection.Dispose();
+            }
+
             _disposed = true;
+            await Task.CompletedTask;
         }
     }
 }

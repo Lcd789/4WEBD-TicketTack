@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using EventService.Controllers;
-using EventService.Models;
-using EventService.Services;
+using TicketTack.EventService.Controllers;
+using TicketTack.Shared.Models;
+using TicketTack.Shared.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Xunit;
@@ -13,12 +13,12 @@ namespace EventService.Tests
 {
     public class EventControllerTests
     {
-        private readonly Mock<IEventService> _mockEventService;
+        private readonly Mock<EventService> _mockEventService;
         private readonly EventController _controller;
 
         public EventControllerTests()
         {
-            _mockEventService = new Mock<IEventService>();
+            _mockEventService = new Mock<EventService>();
             _controller = new EventController(_mockEventService.Object);
         }
 
@@ -26,10 +26,32 @@ namespace EventService.Tests
         public async Task GetAll_ShouldReturnAllEvents()
         {
             // Arrange
-            var expectedEvents = new List<Event>
+            var expectedEvents = new List<EventDto>
             {
-                new Event { Id = "1", Name = "Concert A", Date = DateTime.Now.AddDays(10), MaxCapacity = 100 },
-                new Event { Id = "2", Name = "Concert B", Date = DateTime.Now.AddDays(20), MaxCapacity = 200 }
+                new EventDto {
+                    Id = "1",
+                    Name = "Concert A",
+                    StartDate = DateTime.Now.AddDays(10),
+                    EndDate = DateTime.Now.AddDays(11),
+                    Location = "Venue A",
+                    TotalTickets = 100,
+                    TicketsAvailable = 100,
+                    Price = 25.00m,
+                    Categories = new List<string> { "Music" },
+                    IsPublished = true
+                },
+                new EventDto {
+                    Id = "2",
+                    Name = "Concert B",
+                    StartDate = DateTime.Now.AddDays(15),
+                    EndDate = DateTime.Now.AddDays(16),
+                    Location = "Venue B",
+                    TotalTickets = 200,
+                    TicketsAvailable = 200,
+                    Price = 35.00m,
+                    Categories = new List<string> { "Music" },
+                    IsPublished = true
+                }
             };
 
             _mockEventService.Setup(service => service.GetAllEventsAsync())
@@ -40,7 +62,7 @@ namespace EventService.Tests
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var returnedEvents = Assert.IsAssignableFrom<IEnumerable<Event>>(okResult.Value);
+            var returnedEvents = Assert.IsAssignableFrom<IEnumerable<EventDto>>(okResult.Value);
             Assert.Equal(2, returnedEvents.Count());
         }
 
@@ -49,7 +71,19 @@ namespace EventService.Tests
         {
             // Arrange
             var eventId = "1";
-            var expectedEvent = new Event { Id = eventId, Name = "Concert A", Date = DateTime.Now.AddDays(10), MaxCapacity = 100 };
+            var expectedEvent = new EventDto
+            {
+                Id = eventId,
+                Name = "Concert A",
+                StartDate = DateTime.Now.AddDays(10),
+                EndDate = DateTime.Now.AddDays(11),
+                Location = "Venue A",
+                TotalTickets = 100,
+                TicketsAvailable = 100,
+                Price = 25.00m,
+                Categories = new List<string> { "Music" },
+                IsPublished = true
+            };
 
             _mockEventService.Setup(service => service.GetEventByIdAsync(eventId))
                 .ReturnsAsync(expectedEvent);
@@ -59,7 +93,7 @@ namespace EventService.Tests
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var returnedEvent = Assert.IsType<Event>(okResult.Value);
+            var returnedEvent = Assert.IsType<EventDto>(okResult.Value);
             Assert.Equal(eventId, returnedEvent.Id);
         }
 
@@ -69,7 +103,7 @@ namespace EventService.Tests
             // Arrange
             var eventId = "999";
             _mockEventService.Setup(service => service.GetEventByIdAsync(eventId))
-                .ReturnsAsync((Event)null);
+                .ReturnsAsync((EventDto)null);
 
             // Act
             var result = await _controller.GetById(eventId);
@@ -82,10 +116,33 @@ namespace EventService.Tests
         public async Task Create_WithValidEvent_ShouldReturnCreatedEvent()
         {
             // Arrange
-            var newEvent = new Event { Name = "New Concert", Date = DateTime.Now.AddDays(30), MaxCapacity = 300 };
-            var createdEvent = new Event { Id = "3", Name = "New Concert", Date = DateTime.Now.AddDays(30), MaxCapacity = 300 };
+            var newEvent = new CreateEventDto
+            {
+                Name = "New Concert",
+                StartDate = DateTime.Now.AddDays(30),
+                EndDate = DateTime.Now.AddDays(31),
+                Location = "New Venue",
+                TotalTickets = 300,
+                Price = 45.00m,
+                Categories = new List<string> { "Music", "Festival" },
+                IsPublished = true
+            };
 
-            _mockEventService.Setup(service => service.CreateEventAsync(It.IsAny<Event>()))
+            var createdEvent = new EventDto
+            {
+                Id = "3",
+                Name = "New Concert",
+                StartDate = DateTime.Now.AddDays(30),
+                EndDate = DateTime.Now.AddDays(31),
+                Location = "New Venue",
+                TotalTickets = 300,
+                TicketsAvailable = 300,
+                Price = 45.00m,
+                Categories = new List<string> { "Music", "Festival" },
+                IsPublished = true
+            };
+
+            _mockEventService.Setup(service => service.CreateEventAsync(It.IsAny<CreateEventDto>()))
                 .ReturnsAsync(createdEvent);
 
             // Act
@@ -93,7 +150,7 @@ namespace EventService.Tests
 
             // Assert
             var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-            var returnedEvent = Assert.IsType<Event>(createdResult.Value);
+            var returnedEvent = Assert.IsType<EventDto>(createdResult.Value);
             Assert.Equal("3", returnedEvent.Id);
             Assert.Equal(newEvent.Name, returnedEvent.Name);
         }
@@ -103,17 +160,41 @@ namespace EventService.Tests
         {
             // Arrange
             var eventId = "1";
-            var eventToUpdate = new Event { Id = eventId, Name = "Updated Concert", Date = DateTime.Now.AddDays(15), MaxCapacity = 150 };
+            var eventToUpdate = new UpdateEventDto
+            {
+                Name = "Updated Concert",
+                StartDate = DateTime.Now.AddDays(15),
+                EndDate = DateTime.Now.AddDays(16),
+                Location = "Updated Venue",
+                TotalTickets = 150,
+                Price = 30.00m,
+                Categories = new List<string> { "Music", "Live" },
+                IsPublished = true
+            };
 
-            _mockEventService.Setup(service => service.UpdateEventAsync(eventId, It.IsAny<Event>()))
-                .ReturnsAsync(eventToUpdate);
+            var updatedEvent = new EventDto
+            {
+                Id = eventId,
+                Name = "Updated Concert",
+                StartDate = DateTime.Now.AddDays(15),
+                EndDate = DateTime.Now.AddDays(16),
+                Location = "Updated Venue",
+                TotalTickets = 150,
+                TicketsAvailable = 150,
+                Price = 30.00m,
+                Categories = new List<string> { "Music", "Live" },
+                IsPublished = true
+            };
+
+            _mockEventService.Setup(service => service.UpdateEventAsync(eventId, It.IsAny<UpdateEventDto>()))
+                .ReturnsAsync(updatedEvent);
 
             // Act
             var result = await _controller.Update(eventId, eventToUpdate);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var returnedEvent = Assert.IsType<Event>(okResult.Value);
+            var returnedEvent = Assert.IsType<EventDto>(okResult.Value);
             Assert.Equal(eventId, returnedEvent.Id);
             Assert.Equal(eventToUpdate.Name, returnedEvent.Name);
         }
@@ -123,10 +204,20 @@ namespace EventService.Tests
         {
             // Arrange
             var eventId = "999";
-            var eventToUpdate = new Event { Id = eventId, Name = "Updated Concert", Date = DateTime.Now.AddDays(15), MaxCapacity = 150 };
+            var eventToUpdate = new UpdateEventDto
+            {
+                Name = "Updated Concert",
+                StartDate = DateTime.Now.AddDays(15),
+                EndDate = DateTime.Now.AddDays(16),
+                Location = "Updated Venue",
+                TotalTickets = 150,
+                Price = 30.00m,
+                Categories = new List<string> { "Music", "Live" },
+                IsPublished = true
+            };
 
-            _mockEventService.Setup(service => service.UpdateEventAsync(eventId, It.IsAny<Event>()))
-                .ReturnsAsync((Event)null);
+            _mockEventService.Setup(service => service.UpdateEventAsync(eventId, It.IsAny<UpdateEventDto>()))
+                .ReturnsAsync((EventDto)null);
 
             // Act
             var result = await _controller.Update(eventId, eventToUpdate);

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TicketTack.Shared.Infrastructure.MongoDB.Extensions;
-using TicketTack.Shared.Infrastructure.RabbitMQ.Extensions;
+using TicketTack.Shared.Infrastructure.RabbitMQ;
 
 namespace TicketTack.Shared.Extensions
 {

@@ -1,4 +1,6 @@
-﻿namespace TicketTack.Shared.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace TicketTack.Shared.DTOs
 {
     public class UserDto
     {
@@ -7,15 +9,26 @@
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string PhoneNumber { get; set; }
-        public List<string> Roles { get; set; }
+        public string Role { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 
     public class RegisterUserDto
     {
+        [Required]
+        [EmailAddress]
         public string Email { get; set; }
+
+        [Required]
+        [MinLength(8)]
         public string Password { get; set; }
+
+        [Required]
         public string FirstName { get; set; }
+
+        [Required]
         public string LastName { get; set; }
+
         public string PhoneNumber { get; set; }
     }
 
